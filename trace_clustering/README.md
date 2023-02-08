@@ -29,6 +29,7 @@ The **source** folder contains files with the code that are used as a package in
 
 The dataset utilized in this work is presented in `Maaradji, A., Dumas, M., La Rosa, M. and Ostovar, A. 2015. Business Process Drift.  Dataset, Queensland Univ. of Technology, Australia`. Available at https://data.4tu.nl/articles/Business_Process_Drift/12712436.
 
+For the 'lp' and 're' change pattern event logs, adjustments and corrections were applied over the original logs. The baseline process model was simulated to generate event logs and also the correct changes were applied respectively and the subset of drift event logs were generated as described in the original paper. 
 
 
 ## Citing this work
