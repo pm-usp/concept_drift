@@ -5,15 +5,23 @@ Created on Sun Mar 20 17:00:46 2022
 @author: Antonio Carlos Meira Neto
 """
 
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+
+
+import copy
 from functools import reduce
+
 import TMPD_utils
 import TMPD_process_features
 import TMPD_change_features
 import TMPD_detection_tasks
+import TMPD_understanding_tasks
+
 import pm4py
+from pm4py.objects.log.importer.xes import importer as xes_importer
 
 from tqdm.notebook import tqdm_notebook
 import time
@@ -21,7 +29,7 @@ import time
 import ruptures as rpt
 from ruptures.metrics import precision_recall, meantime
 
-from pm4py.objects.log.importer.xes import importer as xes_importer
+
 
 
 class TMPD():
@@ -117,6 +125,9 @@ class TMPD():
             elif self.timestamp_format is not None:
                 event_log['timestamp'] = pd.to_datetime(event_log['timestamp'], format=self.timestamp_format)
 
+
+            # Add a Start and End activities case it doesn't have
+            event_log = TMPD_utils.add_start_end_activities(event_log=event_log, case_id_col="case_id", activity_col="activity", timestamp_col="timestamp")
 
             # Create the transition log
             transition_log = pd.concat([event_log[['case_id']], event_log.add_suffix('_from'), event_log.groupby('case_id').shift(-1).add_suffix('_to')], axis=1).drop(columns=['case_id_from'])
@@ -284,7 +295,6 @@ class TMPD():
 
 
     def set_process_representation(self, threshold_anomaly=0
-                                    # , control_flow_features=['frequency', 'probability']
                                     , control_flow_features={'frequency', 'probability'}
                                     , time_features=None
                                     , resource_features=None
@@ -487,7 +497,7 @@ class TMPD():
         """
 
         # Initiating the change representation dictionary
-        change_representation_dict = self.windows_df_dict.copy()
+        change_representation_dict = copy.deepcopy(self.windows_df_dict)
 
         # Iterate over each window index and window information
         for window_index, window_info in self.windows_df_dict.items():
@@ -669,3 +679,174 @@ class TMPD():
         """
 
         return self.detection_task_result_df
+    
+    def set_localization_task(self, reference_window_index, detection_window_index, pvalue_threshold=0.05, effect_prop_threshold=0.2, effect_count_threshold=0.02, pseudo_count=5) -> None: 
+        """
+
+        """
+        self.reference_window_index_localization = reference_window_index
+        self.detection_window_index_localization = detection_window_index
+        self.pvalue_threshold_localization = pvalue_threshold
+        self.effect_prop_threshold_localization = effect_prop_threshold
+        self.effect_count_threshold_localization = effect_count_threshold
+        self.pseudo_count_localization = pseudo_count
+
+
+    def run_localization_task(self) -> None:
+        """
+
+        """
+        # Getting the reference window
+        self.run_process_representation(self.transition_log[self.get_windowing_strategy()[self.reference_window_index_localization]['start']:self.get_windowing_strategy()[self.reference_window_index_localization]['end']])
+        reference_window_df = self.get_process_representation()
+        reference_window_df = reference_window_df[reference_window_df["frequency"] > 0].dropna(how='all').reset_index()
+
+        # Getting the detection window
+        self.run_process_representation(self.transition_log[self.get_windowing_strategy()[self.detection_window_index_localization]['start']:self.get_windowing_strategy()[self.detection_window_index_localization]['end']])
+        detection_window_df = self.get_process_representation()
+        detection_window_df = detection_window_df[detection_window_df["frequency"] > 0].dropna(how='all').reset_index()
+
+        # Extracting features
+        features_windows = set(reference_window_df.columns) - {'activity_from', 'activity_to'}
+
+        # Add suffixes to columns except 'From' and 'To'
+        reference_window_df_aux = reference_window_df.add_suffix('_ref').rename(columns={'activity_from_ref': 'activity_from', 'activity_to_ref': 'activity_to'})
+        detection_window_df_aux = detection_window_df.add_suffix('_det').rename(columns={'activity_from_det': 'activity_from', 'activity_to_det': 'activity_to'})
+
+        # Perform an outer join and fill missing values with zeros
+        merged_windows_df = pd.merge(reference_window_df_aux, detection_window_df_aux, on=['activity_from', 'activity_to'], how='outer').fillna(0)
+
+        # Get changed transitions list
+        self.changed_transitions = TMPD_understanding_tasks.changed_transitions_detection(self, merged_windows_df, features_windows)
+
+        # Get DFGs
+        self.reference_dfg = TMPD_understanding_tasks.create_dfg_from_dataset(reference_window_df)
+        self.detection_dfg = TMPD_understanding_tasks.create_dfg_from_dataset(detection_window_df)
+
+        # Compare DFGs
+        dfg_changes = TMPD_understanding_tasks.compare_dfgs(self.reference_dfg, self.detection_dfg)
+
+        # Converting changed transitions list to a dict
+        changed_transitions_dict = {}
+        for feature in features_windows:
+            # Check if the feature has any changed transitions
+            if feature in self.changed_transitions['feature'].unique():
+                # Extract transitions for the feature
+                transitions = self.changed_transitions[self.changed_transitions['feature'] == feature]['transition'].tolist()
+            else:
+                # Assign ['None'] if there are no transitions for the feature
+                transitions = ['None']
+            # Add the transitions to the dictionary with a modified key
+            changed_transitions_dict["Transitions with variations in " + str(feature)] = transitions
+
+
+        # Combine changed transtions list with DFG changes
+        self.change_informations = changed_transitions_dict | dfg_changes
+
+        # Covert DFG to process trees and get BPMN diagram text
+        self.reference_bpmn_text = TMPD_understanding_tasks.create_process_tree_from_dfg(self.reference_dfg, parameters={"noise_threshold": 0})
+        self.detection_bpmn_text = TMPD_understanding_tasks.create_process_tree_from_dfg(self.detection_dfg, parameters={"noise_threshold": 0}) 
+        
+        
+         
+    def get_localization_task(self, show_localization_dfg=True,show_original_dfg=False, show_original_bpmn=False) -> pd.DataFrame:
+        """
+
+        """
+        # Show DFGs
+        if show_original_dfg:
+            pm4py.view_dfg(self.reference_dfg.graph, self.reference_dfg.start_activities, self.reference_dfg.end_activities)
+            pm4py.view_dfg(self.detection_dfg.graph, self.detection_dfg.start_activities, self.detection_dfg.end_activities)
+
+        # Show BPMN
+        if show_original_bpmn:
+            # Get BPMNs
+            self.reference_bpmn = TMPD_understanding_tasks.create_bpmn_from_dfg(self.reference_dfg)
+            self.detection_bpmn = TMPD_understanding_tasks.create_bpmn_from_dfg(self.detection_dfg)
+            pm4py.view_bpmn(self.reference_bpmn)
+            pm4py.view_bpmn(self.detection_bpmn)
+
+        # Show DFGs with Localization results
+        if show_localization_dfg:
+            TMPD_understanding_tasks.localization_dfg_visualization(self.reference_dfg, self.change_informations, bgcolor="white", rankdir="LR", node_penwidth="2", edge_penwidth="2")
+            TMPD_understanding_tasks.localization_dfg_visualization(self.detection_dfg, self.change_informations, bgcolor="white", rankdir="LR", node_penwidth="2", edge_penwidth="2")
+
+        return self.changed_transitions, self.change_informations, self.reference_bpmn_text, self.detection_bpmn_text
+    
+
+    def set_characterization_task(self, llm_company = "openai", llm_model="gpt-4o", api_key_path=None, llm_instructions_path=None) -> None:
+
+        """
+
+        """
+        self.llm_company = llm_company
+        self.llm_model = llm_model
+        self.llm = TMPD_understanding_tasks.llm_instanciating(llm_company, llm_model, api_key_path)
+
+
+        # Load LLM Instructions json and add contextualized informations
+        self.llm_instructions = TMPD_understanding_tasks.llm_instructions_load(llm_instructions_path)
+
+    
+
+    def run_characterization_task(self) -> None:
+
+        """
+
+        """
+
+        ### BPMN analysis
+        # Prepare the prompt
+        self.llm_bpmn_analysis_prompt = TMPD_understanding_tasks.llm_bpmn_analysis_prompt(self.llm_instructions, self.reference_bpmn_text, self.detection_bpmn_text)
+        print("################################ llm_bpmn_analysis_prompt #####################################")
+        print(self.llm_bpmn_analysis_prompt)
+        # Call LLM response
+        self.llm_bpmn_analysis_response = TMPD_understanding_tasks.llm_call_response(self.llm_company, self.llm_model, self.llm, self.llm_bpmn_analysis_prompt)
+        print("################################ llm_bpmn_analysis_response #####################################")
+        print(self.llm_bpmn_analysis_response)
+
+
+
+        ### Classification prompt
+        # Prepare the prompt
+        self.llm_classification_prompt = TMPD_understanding_tasks.llm_classification_prompt(self.llm_instructions, self.change_informations, self.reference_bpmn_text, self.detection_bpmn_text, self.llm_bpmn_analysis_response) 
+        print("################################ llm_classification_prompt #####################################")
+        print(self.llm_classification_prompt)
+        # Call LLM response
+        self.characterization_classification_response = TMPD_understanding_tasks.llm_call_response(self.llm_company, self.llm_model, self.llm, self.llm_classification_prompt) 
+        print("################################ characterization_classification_response #####################################")
+        print(self.characterization_classification_response)
+
+        # Call LLM classification formatting
+        self.characterization_classification_dict = TMPD_understanding_tasks.llm_classification_formatting(self.characterization_classification_response)
+        print("################################ characterization_classification_dict #####################################")
+        print(self.characterization_classification_dict)
+
+
+    def get_characterization_task(self) -> pd.DataFrame:
+
+        """
+
+        """
+        return self.characterization_classification_dict, self.characterization_classification_response, self.llm_bpmn_analysis_response 
+
+    def set_explanation_task(self) -> None:
+
+        """
+
+        """
+
+    def run_explanation_task(self) -> None:
+
+        """
+
+        """
+
+    def get_explanation_task(self) -> pd.DataFrame:
+
+        """
+        
+        """
+    
+
+

@@ -1,7 +1,11 @@
 # Local
-Experiments/Results/*_files
+Temp/
+Input/
+Experiments/Results
 old/
 .vscode
+*.jar
+*.docx
 
 __pycache__/
 *.py[cod]

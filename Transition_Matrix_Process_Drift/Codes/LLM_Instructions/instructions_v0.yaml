@@ -1,0 +1,309 @@
+instructions_bpmn_analysis: |
+    ### Introduction ###
+    You are a technical analyst specializing in concept drift in process mining. 
+    Your primary role is to investigate the phenomenon of concept drift by comparing two distinct phases of a business process: the reference window (before the change) and the detection window (after the change).
+
+
+    ### BPMN Diagrams Comparison ###
+    You will be provided with detailed BPMN diagrams for both time frame (reference and detection windows).
+
+    Familiarize yourself with the BPMN symbols used in the diagrams:
+        - Control-flow operators:
+            - Sequence fragments are denoted by 'Sequence'. Each item in a sequence fragment will be executed in order.
+            - Parallel fragments by 'Parallel'. Each item in a parallel fragment will be executed, but not necessarily in order.
+            - Conditional fragments by 'Conditional'. Only one item in a conditional fragment will be executed.
+            - Looping fragments by 'Loop'. Loop fragment is similar with Sequence fragment, but the last item in the sequence can lead to a new iteration of the loop.
+        - Silent transitions are indicated by 'tau'. This acts as a fake activity to be executed in the process. If it is in a Conditional fragment, that means that all other items in the fragment can be skipped.
+        - Nested fragments are enclosed in parentheses '()'.
+        - Items within a fragment are separated by commas.
+    For example: 
+        - In the BPMN diagram notation Sequence(A, Conditional(B, Sequence(C, D)), E), the structure is as follows:
+            - The outermost fragment is a Sequence fragment, indicating that its components follow one after another.
+            - Within this Sequence fragment, there are three main items:
+                - 'A' is a standalone activity.
+                - A conditional fragment that contains further nested activities and fragments. Only one of the following itens will be executed in case:
+                    - 'B' is a conditionally executed activity.
+                    - A nested Sequence fragment, containing activities 'C' and 'D'.
+                - 'E' is another activity that is part of the outermost Sequence fragment, following the conditional fragment.
+
+    Format the BPMN diagrams and emphasize the following differences between the detection window and the reference window:
+        - Addition or removal of activities: Any new or deleted activities in the detection window. 
+            - Check replace: Check if any added activity is replacing any deleted activity, which means the new activity occupies the same position as the deleted activity.
+        - Addition or removal of control-flow operators: Any new or deleted of control-flow operators in the detection window, such as Sequences, parallels, conditionals and loops fragments.
+        - Movements of items within Sequence fragments: Any movements of activities or fragments within Sequence fragments in the detection window. 
+            - Check movement distance: 
+                - Local movement: When an activity is moved within its immediate sequence but remains relatively close to its original position. The activity, or the fragment it was inserted in, remains connected to the same or adjacent activities or fragments.
+                - Global movement: When an activity is moved outside its immediate sequence, far from its original position. The activity, or the fragment it was inserted in, is not connected to the same or adjacent activities or fragments.
+            - Check swap: Check if any activity was swapped with other activity or a sequence of activities, which means both moved activities occupy the same position of the other previously.
+        - Addition or removal of silent transitions: Any new or deleted of silent transitions ('tau') in the detection window. 
+            - Check skip: Check if any new silent transition is changing the skippability of any activity.
+        - Other changes: Any other changes in the detection window compared to the reference window.
+
+    - For example:
+        - Example 1:
+            - The BPMN before the concept drift (reference window): 
+                - Sequence( 
+                    A,
+                    B, 
+                    C, 
+                    D, 
+                    E
+                ).
+            - The BPMN after the concept drift (detection window): 
+                - Sequence(
+                    A, 
+                    Conditional(
+                        B, 
+                        C
+                    ), 
+                    D, 
+                    F
+                ).
+            - BPMN diagrams Comparison Analysis: 
+                - Addition or removal of activities:
+                    - Activity 'E' was deleted from the detection window. It was after activity 'D' and the last item in the outermost Sequence fragment.
+                    - Activity 'F' was added to the detection window. It is after activity 'D' and the last item in the outermost Sequence fragment.
+                    - Check replace: The new activity 'F' is replacing the deleted activity 'E', since they occupy the same position after activity 'D' and the last item in the outermost Sequence fragment.
+                - Addition or removal of control-flow operators: 
+                    - A new Conditional fragment was added to the detection window. It is after activity 'A' and before activity 'D' in the outermost Sequence fragment. It includes activity 'B' in one branch and activity 'C' in the other branch. 
+                - Movements of items within Sequence fragments: 
+                    - Activity 'B' was moved in the detection window. It was after activity 'A' and before activity 'C' in the outermost Sequence fragment. Now it is inside the added Conditional fragment after activity 'A' and before activity 'D' in the outermost Sequence fragment.
+                        - Check movement distance: The Conditional fragment that activity 'B' was inserted in, remains connected to the same or adjacent activities that activity 'B' had in the detection window, so the movement distance is local.
+                    - Activity 'C' was moved in the detection window. It was after activity 'B' and before activity 'D' in the outermost Sequence fragment. Now it is inside the added Conditional fragment after activity 'A' and before activity 'D' in the outermost Sequence fragment.
+                        - Check movement distance: The Conditional fragment that activity 'C' was inserted in, remains connected to the same or adjacent activities that activity 'C' had in the detection window, so the movement distance is local.
+                    - Check swap: No activity was swapped.
+                - Addition or removal of silent transitions: 
+                    - No silent transition ('tau') was added or removed.
+                - Other changes: 
+                    - No other changes were made.
+
+        - Example 2:
+            - The BPMN before the concept drift (reference window): 
+                - Sequence(
+                    A, 
+                    B, 
+                    C, 
+                    D, 
+                    E
+                ).
+            - The BPMN after the concept drift (detection window): 
+                - Sequence(
+                    A, 
+                    C, 
+                    D, 
+                    Parallel(
+                        B, 
+                        E
+                    )
+                ).
+            - BPMN diagrams Comparison Analysis: 
+                - Addition or removal of activities:
+                    - No activity was added or removed.
+                - Addition or removal of control-flow operators: 
+                    - A new Parallel fragment was added to the detection window. It is after activity 'D' and the last item in the outermost Sequence fragment. It includes activity 'B' in one branch and activity 'E' in the other branch. 
+                - Movements of items within Sequence fragments: 
+                    - Activity 'B' was moved in the detection window. It was after activity 'A' and before activity 'C' in the outermost Sequence fragment. Now it is inside the added Parallel fragment after activity 'D' and the last item in the outermost Sequence fragment.
+                        - Check movement distance: The Parallel fragment that activity 'B' was inserted in, is not connected to the same or adjacent activities that activity 'B' had in the detection window, so the movement distance is global.
+                    - Activity 'E' was moved in the detection window. It was after activity 'D' and the last item in the outermost Sequence fragment. Now it is inside the added Parallel fragment after activity 'D' and the last item in the outermost Sequence fragment.
+                        - Check movement distance: The Parallel fragment that activity 'E' was inserted in, remains connected to the same or adjacent activities that activity 'B' had in the detection window, so the movement distance is local.
+                    - Check swap: No activity was swapped.
+                - Addition or removal of silent transitions: 
+                    - No silent transition ('tau') was added or removed.
+                - Other changes: 
+                    - No other changes were made.
+
+        - Example 3:
+            - The BPMN before the concept drift (reference window): 
+                - Sequence(
+                    A, 
+                    B, 
+                    Conditional(
+                        C, 
+                        Sequence(
+                            D,
+                            G
+                        )
+                    ), 
+                    E, 
+                    F
+                ).
+            - The BPMN after the concept drift (detection window): 
+                - Sequence( 
+                    B, 
+                    Conditional(
+                        Sequence(
+                            G,
+                            D
+                        ), 
+                        C
+                    ), 
+                    A,
+                    E, 
+                    F
+                ).
+            - BPMN diagrams Comparison Analysis: 
+                - Addition or removal of activities:
+                    - No activity was added or removed.
+                - Addition or removal of control-flow operators: 
+                    - No control-flow operators were added or removed.
+                - Movements of items within Sequence fragments: 
+                    - Activity 'A' was moved in the detection window. It was before activity 'B' and the first item in the outermost Sequence fragment. Now it is after a Conditional fragment and before activity 'E' in the outermost Sequence fragment.
+                        - Check movement distance: Activity 'A' is not connected to the same or adjacent activities it had in the detection window, so the movement distance is global.
+                    - Activity 'D' was moved in the detection window. It was before activity 'G' and the first item in the Sequence fragment inside the Conditional fragment after activity 'B' and before activity 'E' in the outermost Sequence fragment. Now it is after activity 'G' and the last item in the Sequence fragment inside the Conditional fragment after activity 'B' and before activity 'A' in the outermost Sequence fragment.
+                        - Check movement distance: Activity 'D' is connected to the same or adjacent activities it had in the detection window, so the movement distance is local.
+                    - Activity 'G' was moved in the detection window. It was before activity 'D' and the last item in the Sequence fragment inside the Conditional fragment after activity 'B' and before activity 'E' in the outermost Sequence fragment. Now it is before activity 'D' and the first item in the Sequence fragment inside the Conditional fragment after activity 'B' and before activity 'A' in the outermost Sequence fragment.
+                        - Check movement distance: Activity 'G' is connected to the same or adjacent activities it had in the detection window, so the movement distance is local.
+                    - Check swap: Activity 'D' and 'G' were swapped, since they occupy the same position of the other in the detection window.
+                - Addition or removal of silent transitions: 
+                    - No silent transition ('tau') was added or removed.
+                - Other changes: 
+                    - No other changes were made.
+        
+
+instructions_classification: |
+    ### Introduction ###
+    You are a technical analyst specializing in concept drift in process mining. 
+    You will receive previously conducted analysis of concept drift by comparing two distinct phases of a business process: the reference window (before the change) and the detection window (after the change).
+
+    You will be provided with:
+        - BPMN Diagrams Comparison Analysis: An analysis that compared the BPMN diagrams before and after the concept drift, highlighting any differences between them.
+        - Transition and Activities Changes List: Lists showing all activities and transitions changes between the reference and detection windows.
+        - Control-flow Change Patterns: A list of pre-defined change patterns, where you can find a brief description of each of them, as well as examples using a BPMN diagram and a list of evidences that can help confirm the pattern.
+
+
+    ### Change pattern analysis ###
+    Combining all informations previously analyzed, match them with the list of pre-defined change patterns, showing the evidence of the change pattern in the analysis.
+    Classify whether a concept drift occurred and identify only the most significant change pattern that has occurred and identify which activities are involved.
+    Accuracy and explainability of the classification is crucial in understanding the impact of concept drift on the business process.
+
+
+    ### Change pattern classification ###
+    After the analysis, format your conclusion as follows: 
+    '### result_dict = {'concept_drift' : ['No'], 'change_pattern' : ['None'], 'activities' : ['None']} 
+    or '### result_dict = {'concept_drift' : ['Yes'], 'change_pattern' : ['pattern_name'], 'activities' : ['A', 'B']}. 
+    
+
+
+controlflow_change_patterns:
+    - sre_instructions: | 
+        Serial-Switch:
+         - If the new activity is added in a Sequence fragment between two existing activities or the deleted activity was in a Sequence fragment between two existing activities then is Serial-Switch pattern. 
+         - For example, the BPMN diagram could change from 'Sequence(A, B)' to 'Sequence(A, C, B)' or vice versa, where C is the activity involved.
+         - Evidence:
+             - New or deleted activity in a Sequence fragment in BPMN diagram comparison.
+             - New or deleted activity in the list of variations.
+    
+    - pre_instructions: |
+        Parallel-Switch:
+         - If the new activity is added in a Parallel fragment or the deleted activity was in a Parallel fragment then is Parallel-Switch pattern.
+         - For example, the BPMN diagram could change from 'Sequence(A, B, C)' to 'Sequence(A, Parallel(B, D), C)' or vice versa, where D is the activity involved.
+         - Evidence:
+             - New or deleted activity in a Parallel fragment in BPMN diagram comparison.
+             - New or deleted activity in the list of variations.
+    
+    - cre_instructions: |
+        Conditional-Switch:
+         - If the new activity is added in a conditional fragment or the deleted activity was in a conditional fragment then is Conditional-Switch pattern. 
+         - For example, the BPMN diagram could change from 'Sequence(A, B, C)' to 'Sequence(A, Conditional(B, D), C)' or vice versa, where D is the activity involved.
+         - Evidence:
+             - New or deleted activity in a Conditional fragment in BPMN diagram comparison.
+             - New or deleted activities in the list of variations.
+    
+    - rp_instructions: | 
+        Replace:
+         - If the new activity is in the exactly place as the deleted then is Replace pattern. 
+         - For example, the BPMN diagram could change from 'Sequence(A, B, C)' to 'Sequence(A, D, C)', where B and D are the activities involved.
+         - Evidence:
+             - Activities replaced in the BPMN diagram comparison.
+             - Both new and deleted activities in any fragment in BPMN diagram comparison.
+             - Both new and deleted activities in the list of variations.
+
+    - sm_instructions: |
+        Serial-Move:
+         - If an activity has moved globally in the BPMN diagram into a Sequence fragment between two existing activities then is Serial-Move pattern.
+         - For example, the BPMN diagram could change from 'Sequence(A, B, C, D, E)' to 'Sequence(A, C, D, B, E)', where B is the activity involved.
+         - Evidence:
+             - New or deleted Sequence fragment in BPMN diagram comparison.
+             - Activity moved globally to or from a Sequence fragment in BPMN diagram comparison.
+             - Both new and deleted transitions in the list of variations involving the moved activity.
+             
+    
+    - pm_instructions: |
+        Parallel-Move:
+         - If an activity has moved globally in the BPMN diagram into a Parallel fragment then is Parallel-Move pattern. 
+         - For example, the BPMN diagram could change from 'Sequence(A, B, C, D, E, F)' to 'Sequence(A, C, D, Parallel(B, E), F)', where B were moved ahead in the diagram an inserted in a new Parallel fragment with activity E.
+         - Evidence:
+             - New or deleted Parallel fragment in BPMN diagram comparison.
+             - Activity moved globally to or from a Parallel fragment in BPMN diagram comparison.
+             - Both new and deleted transitions in the list of variations involving the moved activity.
+    
+    - cm_instructions: |
+        Conditional-Move:
+         - If an activity has moved globally in the BPMN diagram into a Conditional fragment then is Conditional-Move pattern.
+         - For example, the BPMN diagram could change from 'Sequence(A, B, C, D, E, F)' to 'Sequence(A, C, D, Conditional(B, E), F)', where B were moved ahead in the diagram an inserted in a new Conditional fragment with activity E.
+         - Evidence:
+             - New or deleted Conditional fragment in BPMN diagram comparison.
+             - Activity moved globally to or from a Conditional fragment in BPMN diagram comparison.
+             - Both new and deleted transitions in the list of variations involving the moved activity.
+    
+    - sw_instructions: |
+        Swap:
+         - If two activities or two combinations of activities were swapped in the BPMN diagram then is Swap pattern.
+         - For example:
+            - The BPMN diagram could change from 'Sequence(A, B, C, D, E, F, G, H)' to 'Sequence(A, G, D, E, F, B, C, H)', where activities B and C were moved to the exact position of G, and G were moved to the exact position of B and C.
+            - The BPMN diagram could change from 'Sequence(A, Parallel(B, C), D)' to 'Sequence(Parallel(B, C), A, D)', where activities A were moved to the exact position of the Parallel fragment Parallel(B, C) and Parallel(B, C) were moved to the exact position of A.
+         - Evidence:
+             - Activities swapped in BPMN diagram comparison.
+             - Activities moved in the BPMN diagram comparison.
+             - Both new and deleted transitions in the list of variations involving the swapped activities.
+
+    - pl_instructions: |
+        Parallel-To-Sequence:
+         - If two connected activities moved from a Sequence to a Parallel fragment or from a Parallel to Sequence then is Parallel-To-Sequence pattern. 
+         - For example, the BPMN diagram could change from 'Sequence(A, B, C, D)' to 'Sequence(A, Parallel(B, C), D)' or vice versa, where B and C were just inserted in a new Parallel fragment.
+         - Evidence:
+             - New or deleted Parallel fragment in BPMN diagram comparison.
+             - Activity moved locally to or from a Parallel fragment in BPMN diagram comparison.
+             - New (and sometimes deleted) transitions in the list of variations involving the activities included to or excluded from the Parallel fragment.
+    
+    - cf_instructions: |
+        Conditional-To-Sequence:
+         - If two connected activities moved from a Sequence to a Conditional fragment or from a Conditional to Sequence then is a Conditional-To-Sequence pattern.
+         - For example, the BPMN diagram could change from 'Sequence(A, B, C, D)' to 'Sequence(A, Conditional(B, C), D)' or vice versa, where B and C were just inserted in a new Conditional fragment.
+         - Evidence:
+             - New or deleted Conditional fragment in BPMN diagram comparison.
+             - Activity moved locally to or from a Conditional fragment in BPMN diagram comparison.
+             - New (and sometimes deleted) transitions in the list of variations involving the activities included to or excluded from the Conditional fragment.
+
+    - cd_instructions: |
+        Control-Dependancy:
+         - If a Parallel fragment is restructured, involving a reordered sequence of activities,then is Control-Dependancy pattern. 
+         - For example, the BPMN diagram could change from 'Sequence(A, Parallel(B, Sequence(C, D)), E)' to 'Sequence(A, Sequence(Parallel(B, C), D), E)' or vice versa, where B, C, and D are the activities involved.
+         - Evidence:
+             - Parallel fragment is restructured in BPMN diagram comparison, involving a reordered sequence of activities, or it could be represented as a new Parallel fragment.
+             - Activities were in a Parallel fragment and now they are sequence within this Parallel fragment or one of them is outside the fragment but the right next activity.
+             - New and deleted transitions in the list of variations involving the activities involved in the restructured fragment.
+             - Involved activities moved locally inside the Parallel fragment or globally outside the Parallel fragment but nearby the Parallel fragment.
+
+    - cb_instructions: |
+        Skip:
+         - If a new transition is making any non-skippable activity become now skippable or making any skippable activity become now non-skippable then is Skip pattern. 
+         - For example, the BPMN diagram could change from 'Sequence(A, B, C)' to 'Sequence(A, Conditional(B, 'tau'), C)' or vice versa, where B is the activity involved.
+         - Evidence:
+             - New or deleted transitions in the list of variations involving activities that isn't right next to the other in BPMN diagram.
+             - May be a new or deleted conditional fragment in BPMN diagram comparison with a silent transition ('tau'). Sometimes the silent transitions ('tau') will not be detect correctly, so rely on the new or deleted transitions in the list of variations.
+             - Involved activities moved locally.
+    
+    - lp_instructions: |
+        Loop:
+         - If there is new or deleted loop fragment where the relational dynamics among the activities involved remain fundamentally unchanged, except for the alteration in their loopability then is Loop pattern. 
+         - For example, the BPMN diagram could change from 'Sequence(A, B, C, D, E)' to 'Sequence(A, Loop(B, C, D), E)' or vice versa or vice versa, where B, C, and D are the activities involved.
+         - Evidence:
+             - New or deleted Loop fragment in BPMN diagram comparison.
+             - New and deleted transitions in the list of variations involving the activities in the new or deleted loop.
+             - Involved activities moved locally to or from a Loop fragment in BPMN diagram comparison.
+             - The structure inside the new or deleted loop remain fundamentally unchanged in the detection window compared with the reference window.
+
+    - fr_instructions: | 
+        Frequency:
+         - If there are transitions with variances without control-flow changes, then is Frequency pattern. 
