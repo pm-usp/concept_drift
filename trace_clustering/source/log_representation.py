@@ -45,7 +45,7 @@ def get_count_representation(tokens, binary=True, tfidf=False, ngram_range=(1, 1
             lowercase=False,
             use_idf=True,
             ngram_range=ngram_range,
-            min_df=0,
+            min_df=1,
             max_df=1.0
         )
     else:
@@ -53,7 +53,7 @@ def get_count_representation(tokens, binary=True, tfidf=False, ngram_range=(1, 1
             tokenizer=str.split, 
             lowercase=False,
             ngram_range=ngram_range,
-            min_df=0,
+            min_df=1,
             max_df=1.0,
             binary=binary
         )
@@ -62,7 +62,7 @@ def get_count_representation(tokens, binary=True, tfidf=False, ngram_range=(1, 1
     
     return pd.DataFrame(
         cv_result.todense(), 
-        columns=cv.get_feature_names()
+        columns=cv.get_feature_names_out()
     )
 
 # # # # # # # #
