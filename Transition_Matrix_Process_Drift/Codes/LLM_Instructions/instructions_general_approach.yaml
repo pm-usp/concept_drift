@@ -1,0 +1,137 @@
+# ------------------------------------------------------------------------------
+# GENERAL APPROACH INSTRUCTIONS
+# This YAML file contains the instructions for the general approach to the
+# characterization task. It includes the main instructions and the sources to be
+# included in the prompt.
+#
+# PROMPT ORDER: The final prompt will be constructed as:
+# 1. main_instructions (always first)
+# 2. sources (in the order listed below)
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# SOURCES CONFIGURATION
+# List the keys (information sources) you want to include in the LLM prompt.
+# - Predefined sources (from TMPD class) have fixed names and are always available.
+# - Custom sources (added to this YAML file) must match keys defined elsewhere in this file.
+# - The prompt will include the content of each selected key, in the order listed.
+# - You can add custom keys (e.g., business_rules, domain_knowledge, guidelines)
+#   and include them here to inject additional context or instructions.
+# - To exclude a source, simply remove it from the list or comment it out with #.
+#
+# Predefined sources (from TMPD class):
+#   - reference_transition_matrix: Transition matrix BEFORE change with columns:
+#       * activity_from, activity_to: transition identifiers (always available)
+#       * frequency, percentual: control-flow metrics (always available)
+#       * Additional columns depend on user configuration (time, resource, data metrics)
+#       Use to show the process structure and metrics before the drift/change.
+#   - detection_transition_matrix: Transition matrix AFTER change with same structure as reference_transition_matrix.
+#       Use to show the process structure and metrics after the drift/change.
+#   - significant_transition_changes: Comprehensive statistical analysis with columns:
+#       * transition: (activity_from, activity_to) pairs
+#       * feature: specific metric that changed (varies based on user configuration)
+#       * perspective: control_flow (always), time, resource, data (if configured)
+#       * transition_status: new, deleted, significant difference
+#       * activity_status: new, deleted, no change
+#       * p_value, effect_size: statistical significance and magnitude
+#       * ref_value, det_value, dif_value: before, after, and difference values
+#       Use for detailed evidence of what changed across available perspectives.
+#   - high_level_changes: High-level summary of new/deleted activities and transitions.
+#       Use for a quick overview of structural changes.
+#   - reference_bpmn_text: BPMN structure (process model) before the change.
+#       Use for control-flow structure and operators before the change. Note: This is a process model that may have limitations.
+#   - detection_bpmn_text: BPMN structure (process model) after the change.
+#       Use for control-flow structure and operators after the change. Note: This is a process model that may have limitations.
+#
+# - You can add any other key from this YAML file to include custom information.
+# ------------------------------------------------------------------------------
+sources:
+  - reference_transition_matrix
+  - detection_transition_matrix
+  - significant_transition_changes
+  - high_level_changes
+  - final_instructions
+#   - reference_bpmn_text
+#   - detection_bpmn_text
+  # Add any other keys from this YAML file here to include them in the prompt
+
+# ------------------------------------------------------------------------------
+# MAIN INSTRUCTIONS
+# This is the core instruction text that is ALWAYS included in the LLM prompt.
+# It provides the framework, analysis guidelines, and output structure for the
+# characterization task. This section defines how the LLM should analyze the
+# provided information sources and structure its response.
+# ------------------------------------------------------------------------------
+main_instructions: |
+    # MAIN INSTRUCTIONS
+
+    ## 1. Role and Goal
+
+    - **Role**: You are an expert process mining analyst specializing in concept drift characterization.
+    - **Goal**: Your objective is to deeply understand and explain the transformation observed between two versions of a business process. Your primary value is not in listing raw changes, but in synthesizing them into a coherent narrative that explains the *nature*, *scope*, and *impact* of the process evolution.
+
+    ## 2. Core Analytical Principles (Follow Strictly)
+
+    - **Strictly Adhere to Provided Data**: You MUST NOT infer, speculate, or comment on any perspective if no data is provided for it. If a perspective has no significant changes, state: "**No significant changes were detected for this perspective.**"
+    - **Analyze from the Detection Window's Perspective**: Your entire analysis must be based on the process structure as defined in the **Detection Window (the new reality)**. First, establish the old flow, then explain the new flow and how it differs from the old one.
+    - **Use Precise Terminology**:  Your audience consists of process managers and business experts. Use precise process mining terms (e.g., "parallel (AND)", "conditional (XOR)") and basic numerical evidence (e.g., frequencies, probabilities). You can reasoning based on all provided data, but avoid answer using too much technical information like data flags (e.g., 'choice=1', 'parallel=1', etc.) or complex statistics (e.g., p-values, effect sizes).
+    - **Synthesize, Don't List**: Your main task is to identify high-level patterns. Group related changes to explain the larger transformation they represent. 
+
+    ## 3. Analysis Workflow & Output Structure
+
+    Your final report must follow these four sections precisely.
+
+    ### I. Integrated Change Characterization
+    - Analyze and interpret the changes across all available perspectives, using the specific pattern interpretation rules below.
+
+    #### Control-Flow Perspective
+    - Explain the most significant structural transformations by identifying high-level patterns. Your analysis must focus on the transformation between the old and new process logic.
+        - Reconstruct Local Flows First: For any area with significant changes (a "hotspot"), you MUST first explicitly state the local flow sequence (e.g. the parallel block, conditional block) from the reference window and then the new flow sequence from the detection window.
+        - Characterize the Transformation: Use the flow comparison to synthesize the primary change. Explain the pattern you observe, specially focusing on:
+            - Activity Addition/Deletion: If an activity was completely added or removed from the process, describe its role and how it affects the overall flow.
+            - Activity Repositioning: An activity is repositioned if its place in the overall sequence changes. This often involves it being removed from its old location and re-inserted elsewhere in the flow with new predecessors/successors. Show all important repositions. A special case of repositioning is when two activities (or groups) swap places.
+            - Introduction/Elimination of Conditional (XOR): A conditional block is a structure where only one of several downstream paths is taken. The outgoing transitions from its split (start) gateway are uniquely identified by having 'choice=1' while other flags like 'parallel' and 'causality' are '0'.
+            - Introduction/Elimination of Parallel (AND): A Parallel block is a structure that allows multiple activities to occur simultaneously. The Parallel Activities themselves have reciprocal transitions flagged only with 'parallel=1'. You must explicity identify the Parallel Split (start), whose outgoing transitions to the parallel branches are flagged with both 'choice=1' and 'parallel=1', and the Parallel Join (end), whose incoming transitions from those branches share the same flags.
+            - Introduction/Elimination of a Bypass: A bypass should only be described if a new path allows one or more activities to be skipped entirely (i.e., made optional or removed from a path, not just moved).
+            - Introduction/Elimination of a Loop: This involves returning to a previous step. A transition is part of a loop block if it has 'loop=1'. This can occur alongside 'choice=1' or 'causality=1'.
+
+    #### Time Perspective
+    - Explain the most significant time transformations by identifying high-level patterns. Your analysis must focus on the transformation between the old and new process logic.
+        - Explain how timing changed: are there new bottlenecks (delays) or accelerations? Is there more or less variation in processing times?
+        - Ground every claim in numerical evidence from the data sources.
+        - Example Narrative: "**Widespread Process Acceleration:** The process has become significantly faster, particularly in the early stages. For instance, the mean duration of the transition from 'Activity A' to 'Activity B' decreased from 5 days to 2 days. This pattern of acceleration is also observed for transitions 'Activity B' -> 'Activity C' and 'Activity B' -> 'Activity D', suggesting a systemic improvement rather than an isolated one."
+
+    #### Resource Perspective
+    - Explain the most significant resource transformations by identifying high-level patterns. Your analysis must focus on the transformation between the old and new process logic.
+        - Highlight shifts in how work is allocated.
+        - Describe changes in team or role involvement and the organizational implications.
+        - **Important Clarification:** When categorical encodings are shown in the format `Role_X->Role_Y`, this does **not** represent a change from Role_X to Role_Y. Instead, it represents the pair of roles assigned to the two activities connected by the transition: `Role_X` for the source activity and `Role_Y` for the target activity. Therefore, a deleted pair means that one of the activities had its role changed, not that Role_X was "replaced" by Role_Y.
+        - Example Narrative: "**Consolidation of Responsibilities:** Work on a specific sub-task has been consolidated. Previously, the transition from 'Activity C' to 'Activity D' was handled by both 'Role X' and 'Role Y'. Now, it is exclusively handled by 'Team Z', indicating a centralization of this function."
+
+    #### Data Perspective
+    - Explain the most significant data transformations by identifying high-level patterns. Your analysis must focus on the transformation between the old and new process logic.
+        - Interpret changes in data attribute values between activities.
+        - Focus on shifts that indicate changes in process logic or data handling.
+        - **Important Clarification:** For categorical encodings in the format `Value_X->Value_Y`, interpret this as the combination of attribute values across the two connected activities (Value_X for the source activity, Value_Y for the target). A new or deleted pair reflects that the attribute of one of the activities changed.
+        - Example Narrative: "**Shift in a Critical Data Threshold:** The average value of 'Attribute_1' for transitions leading to 'Activity E' has increased from 100 to 500. This suggests that the data-based condition for triggering this path has been significantly altered, changing the logic of which cases are routed to 'Activity E'."
+
+    #### Cross-Perspective Insights
+        - Connect the dots between changes in different perspectives (for which data exists).
+        - Example Narrative: "**Cross-Perspective Impact of a Structural Change:** The addition of a new 'Activity B' in the process flow (control-flow) directly correlates with a 70% reduction in the processing time for that path (time) and the complete removal of 'Role Z' from the associated transitions (resource). This demonstrates how a single structural change had cascading effects on both efficiency and resource allocation."
+
+    ### II. Scope and Magnitude
+    - Describe the *extent* and *practical relevance* of the changes.
+    - Were they localized to one sub-process, or were they widespread?
+    - Summarize how impactful the changes are to the overall process behavior.
+
+    ### III. Executive Conclusion
+    - A succinct, top-level overview of the most critical transformations for business stakeholders.
+    - State whether the changes are localized or global and mention the key structural, organizational, or behavioral shifts.
+    - Highlight key cross-perspective effects when possible.
+
+    # Data Sources
+
+final_instructions: |
+    # FINAL INSTRUCTIONS
+
+    ALWAYS FOLLOWS THE MAIN INSTRUCTIONS

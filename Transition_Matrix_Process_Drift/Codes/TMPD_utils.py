@@ -11,11 +11,17 @@ import xml.etree.ElementTree as ET
 import scipy.stats as ss
 import gzip as gzip_lib
 from datetime import datetime, timedelta
+import pm4py
 
 def process_instance(el):
     """
-        Process each 'process instance' element from the .mxml file
-        and returns as dict
+    Processes each 'process instance' element from the .mxml file and returns it as a dictionary.
+
+    Args:
+        el (Element): XML element representing a process instance.
+
+    Returns:
+        list: List of dictionaries representing the process instance.
     """
     resp = []
     for entry in el[1:]:
@@ -32,7 +38,13 @@ def process_instance(el):
 
 def read_mxml(file):
     """
-        Read MXML file into a Pandas DataFrame
+    Reads an MXML file and converts it into a Pandas DataFrame.
+
+    Args:
+        file (str): Path to the MXML file.
+
+    Returns:
+        DataFrame: Event log data extracted from the MXML file.
     """
     root = ET.parse(file).getroot()
     process = root[-1]
@@ -153,3 +165,20 @@ def list_match_metrics(gt_list, pred_list):
     f1 = 2 * (precision * recall) / (precision + recall) if precision + recall > 0 else 0
     
     return precision, recall, f1
+
+
+def parse_xes(file):
+    """
+    Parse XES file and return a DataFrame.
+    Handles both compressed (.gz) and uncompressed XES files.
+
+    :param file: Path to the XES file.
+    :return: Parsed event log as a pandas DataFrame.
+    """
+    # Read the XES file
+    log = pm4py.read_xes(file, return_legacy_log_object=True)
+
+    # Convert the event log to a pandas DataFrame
+    df = pm4py.convert_to_dataframe(log)
+
+    return df
