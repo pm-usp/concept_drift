@@ -24,34 +24,6 @@ TMPD provides unified process drift detection, change analysis, and process mini
 - **BPMN visualization**: Process model comparison and visualization
 - **Change pattern recognition**: Identification of known process change patterns
 
-## Recent Improvements
-
-### Enhanced LLM Characterization (Latest Update)
-
-The LLM-based characterization has been significantly improved to provide **synthesis and contextualized understanding** rather than just repeating source data:
-
-#### Key Improvements:
-1. **Executive Summary**: Coherent narrative of what happened in the process
-2. **Contextualized Analysis**: Connecting dots between different types of changes
-3. **Business Intelligence**: Transforming technical analysis into business insights
-4. **Selective Data Citation**: Using data to support insights, not restate facts
-
-#### Example Comparison:
-
-**Old Approach (Data Repetition):**
-```
-- "Declaration_APPROVED_by_ADMINISTRATION has frequency 297 and percentual 0.1485"
-- "The probability of transition X increased from 0.9485 to 1.0000"
-```
-
-**New Approach (Synthesis and Context):**
-```
-- "The approval process was restructured, with 297 cases now routed through 
-  administration instead of pre-approvers"
-- "Payment processing efficiency improved significantly, suggesting better 
-  documentation quality from the new approval structure"
-```
-
 #### Configuration:
 The improved characterization uses the `instructions_general_approach.yaml` file with enhanced instructions that focus on:
 - **Synthesis over repetition**: Tell a story, don't just list facts
@@ -101,13 +73,12 @@ prompt, response = tmpd.get_characterization_task()
 - `TMPD_detection_tasks`: Drift detection algorithms
 - `TMPD_understanding_tasks`: LLM-based characterization and understanding
 
-### Configuration Files
+### LLM instruction prompt
 - `Codes/LLM_Instructions/instructions_general_approach.yaml`: Main characterization instructions
-- `Codes/LLM_Instructions/instructions_ostovar_comparison.yaml`: BPMN comparison instructions
 
 ## Examples
 
-See the `Demonstration/` folder for comprehensive examples:
+See the `Demonstrations` for comprehensive examples:
 - Business Process Drift (Maaradji - Fast)
 - CPN Logs Characterization (Ostovar - Robust)
 - Real Log Analysis (BPIC 2020)
@@ -116,13 +87,7 @@ See the `Demonstration/` folder for comprehensive examples:
 ## Requirements
 
 - Python 3.11.5+
-- pandas
-- numpy
-- matplotlib
-- pm4py
-- ruptures
-- tqdm
-- PyYAML
+- see requirements.txt
 
 ## License
 
